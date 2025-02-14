@@ -67,25 +67,33 @@ fn main() {
     let cases = &cases[&test];
 
     for case in cases {
-      store.set_fuel(u64::MAX).unwrap();
-      instance
-        .get_export(&store, case)
-        .unwrap()
-        .into_func()
-        .unwrap()
-        .call(&mut store, &[], &mut [])
-        .unwrap();
+      // Warm up by repeating the first case to shake out issues related to this issue: https://github.com/kayabaNerve/wasm-cycles/issues/1
+      // Obviously this is hacky.
+      let n_attempts = if cycles.is_none() { 2 } else { 1 };
 
-      store.set_fuel(u64::MAX).unwrap();
-      instance
-        .get_export(&store, &("test_".to_string() + &test))
-        .unwrap()
-        .into_func()
-        .unwrap()
-        .call(&mut store, &[], &mut [])
-        .unwrap();
+      let mut this_cycles = 0u64;
+      for _ in 0..n_attempts {
+        store.set_fuel(u64::MAX).unwrap();
+        instance
+          .get_export(&store, case)
+          .unwrap()
+          .into_func()
+          .unwrap()
+          .call(&mut store, &[], &mut [])
+          .unwrap();
 
-      let this_cycles = u64::from(u64::MAX) - store.get_fuel().unwrap();
+        store.set_fuel(u64::MAX).unwrap();
+        instance
+          .get_export(&store, &("test_".to_string() + &test))
+          .unwrap()
+          .into_func()
+          .unwrap()
+          .call(&mut store, &[], &mut [])
+          .unwrap();
+
+        this_cycles = u64::from(u64::MAX) - store.get_fuel().unwrap();
+      }
+
       if cycles.is_none() {
         cycles = Some(this_cycles);
       }
